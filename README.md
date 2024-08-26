@@ -20,6 +20,16 @@ Options:
   -s <DEVICE>      specify target device, by using the USB bus number, to which the command should be directed, ex. `03:02`
   -h, --help       Print help
 ```
+### Example
+
+```sh
+$ mdrop devices
+┌───────────────────┬───────┬────────┐
+│ Name              │ Bus   │ Volume │
+├───────────────────┼───────┼────────┤
+│ Moondrop Dawn Pro │ 03:07 │    66% │
+└───────────────────┴───────┴────────┘
+```
 
 ## Supported devices
 
@@ -27,8 +37,13 @@ Options:
 - Moondrop Dawn 3.5mm (not tested)
 - Moondrop Dawn 4.4mm (not tested)
 
+## Install
+
+TODO
+
 ## TODO List
 
 - Add option to specify device to configure using `bus` and `address` number (because Moondrop doesn't give unique serial ids to the dongles)
-- Make some command output look nicer
+- Make some command output look nicer (`get volume` and `get`)
+- Use `Result` for error handling cases when device is not connected, so that we don't show some output
 - Better error handling instead of `unwrap`ing everything.

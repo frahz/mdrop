@@ -132,11 +132,15 @@ fn main() {
             //         "12%".to_string(),
             //     ),
             // ];
-            let table = Table::new(dongles)
-                .with(Style::sharp())
-                .modify(Columns::last(), Alignment::right())
-                .to_string();
-            println!("{table}");
+            if !dongles.is_empty() {
+                let table = Table::new(dongles)
+                    .with(Style::sharp())
+                    .modify(Columns::last(), Alignment::right())
+                    .to_string();
+                println!("{table}");
+            } else {
+                println!("No devices present");
+            }
         }
     }
 }
