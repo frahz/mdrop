@@ -1,18 +1,16 @@
 use clap::{Args, Parser, Subcommand};
+use commands::MoondropCommand;
 use rusb::Context;
+use tabled::settings::object::Columns;
+use tabled::settings::{Alignment, Style};
+use tabled::Table;
 
+mod commands;
 mod filter;
 mod gain;
 mod indicator_state;
 mod usb;
 mod volume_level;
-
-const GET_ANY: [u8; 3] = [0xC0, 0xA5, 0xA3];
-const GET_VOLUME: [u8; 3] = [0xC0, 0xA5, 0xA2];
-const SET_FILTER: [u8; 3] = [0xC0, 0xA5, 0x01];
-const SET_GAIN: [u8; 3] = [0xC0, 0xA5, 0x02];
-const SET_VOLUME: [u8; 3] = [0xC0, 0xA5, 0x04];
-const SET_INDICATOR_STATE: [u8; 3] = [0xC0, 0xA5, 0x06];
 
 #[derive(Debug, Parser)]
 #[command(name = "mdrop")]
@@ -21,7 +19,7 @@ struct Cli {
     #[command(subcommand)]
     command: Commands,
 
-    /// specify target device to which the command should be directed
+    /// specify target device, by using the USB bus number, to which the command should be directed, ex. `03:02`
     #[arg(short = 's')]
     device: Option<String>,
 }
@@ -63,7 +61,11 @@ enum SetCommands {
     /// Sets gain on device to Low or High
     Gain { gain: gain::Gain },
     /// Sets current hardware volume
-    Volume { level: u8 },
+    Volume {
+        /// Volume level between 0 and 100
+        #[arg(value_parser = clap::value_parser!(u8).range(0..=100))]
+        level: u8,
+    },
     /// Sets indicator state to On, Off(temp), or Off
     IndicatorState {
         state: indicator_state::IndicatorState,
@@ -71,11 +73,6 @@ enum SetCommands {
 }
 
 fn main() {
-    // println!(
-    //     "Moondrop Dawn Pro Device: VID={:#04x} PID={:#04x}",
-    //     DAWN_PRO_VID, DAWN_PRO_PID
-    // );
-
     let args = Cli::parse();
 
     let mut context = match Context::new() {
@@ -86,55 +83,60 @@ fn main() {
     match args.command {
         Commands::Get(get) => {
             let get_cmd = get.command.unwrap_or(GetCommands::All);
-            let mut data = [0u8; 7];
             match get_cmd {
                 GetCommands::All => {
-                    usb::get(&mut context, &GET_ANY, &mut data);
-                    println!("Filter: {}", data[3]);
-                    println!("Gain: {}", data[4]);
-                    println!("Indicator State: {}", data[5]);
+                    let resp = MoondropCommand::get_any(&mut context);
+                    println!("Filter: {:?}", resp.filter);
+                    println!("Gain: {:?}", resp.gain);
+                    println!("Indicator State: {:?}", resp.state);
                 }
                 GetCommands::Volume => {
-                    usb::get(&mut context, &GET_VOLUME, &mut data);
-                    println!("Volume: {}%", volume_level::convert_volume(data[4]));
+                    let volume = MoondropCommand::get_volume(&mut context);
+                    println!(
+                        "Volume: {}%",
+                        volume_level::convert_volume_to_percent(volume)
+                    );
                 }
             }
         }
         Commands::Set(set) => match set.command {
             SetCommands::Filter { filter } => {
-                println!("Filter: {:?}", filter);
-                let mut cmd = Vec::from(SET_FILTER);
-                cmd.push(filter as u8);
-                println!("Filter Command: {:?}", cmd);
-                usb::set(&mut context, &cmd);
+                MoondropCommand::set_filter(&mut context, filter);
             }
             SetCommands::Gain { gain } => {
-                println!("New Gain: {:?}", gain);
-                let mut cmd = Vec::from(SET_GAIN);
-                cmd.push(gain as u8);
-                println!("Gain Command: {:?}", cmd);
-                usb::set(&mut context, &cmd);
+                MoondropCommand::set_gain(&mut context, gain);
             }
             SetCommands::Volume { level } => {
-                println!("Volume Level: {level}");
-                let mut cmd = Vec::from(SET_VOLUME);
-                // FIXME: might be incorrect
-                cmd.push(level);
-                println!("Volume Command: {:?}", cmd);
+                MoondropCommand::set_volume(&mut context, level);
             }
             SetCommands::IndicatorState { state } => {
-                println!("New IndicatorState: {:?}", state);
-                let mut cmd = Vec::from(SET_INDICATOR_STATE);
-                cmd.push(state as u8);
-                println!("IndicatorState Command: {:?}", cmd);
-                usb::set(&mut context, &cmd);
+                MoondropCommand::set_indicator_state(&mut context, state);
             }
         },
         Commands::Devices => {
             let dongles = usb::detect(&mut context);
-            for dongle in dongles {
-                println!("Name: {}", dongle);
-            }
+            // let dongles = vec![
+            //     DeviceInfo::new(
+            //         "Moondrop Dawn Pro".to_string(),
+            //         "03:02".to_string(),
+            //         "71%".to_string(),
+            //     ),
+            //     DeviceInfo::new(
+            //         "Moondrop Dawn 3.5mm".to_string(),
+            //         "02:01".to_string(),
+            //         "40%".to_string(),
+            //     ),
+            //     DeviceInfo::new(
+            //         "Moondrop Dawn 4.4mm".to_string(),
+            //         "04:04".to_string(),
+            //         "12%".to_string(),
+            //     ),
+            // ];
+            let table = Table::new(dongles)
+                .with(Style::sharp())
+                .modify(Columns::last(), Alignment::right())
+                .to_string();
+            println!("{table}");
         }
     }
 }

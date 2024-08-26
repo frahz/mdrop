@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.8", features = ["derive"] }
 rusb = "0.9.4"
+tabled = "0.16.0"
 usb-ids = "1.2024.3"
 
 [profile.release]
