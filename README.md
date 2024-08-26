@@ -39,7 +39,21 @@ $ mdrop devices
 
 ## Install
 
-TODO
+### Requirements
+
+You will need the following udev rules to be able to communicate with the dongle:
+
+```udev
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2fc6", MODE="0666"
+```
+
+### Nix
+
+TBD(no package currently present):
+
+```sh
+nix run github:frahz/mdrop
+```
 
 ## TODO List
 
