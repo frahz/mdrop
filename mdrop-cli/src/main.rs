@@ -42,6 +42,12 @@ enum GetCommands {
     All,
     /// Gets current hardware volume of Moondrop dongle
     Volume,
+    /// Gets audio filter
+    Filter,
+    /// Gets gain on device to Low or High
+    Gain,
+    /// Gets indicator state to On, Off(temp), or Off
+    IndicatorState,
 }
 
 #[derive(Debug, Args)]
@@ -79,21 +85,43 @@ fn main() {
             let get_cmd = get.command.unwrap_or(GetCommands::All);
             match get_cmd {
                 GetCommands::All => {
-                    let resp = moondrop.get_all();
-                    match resp {
-                        Some(dongle) => {
-                            let table = Table::new([dongle])
-                                .with(Style::sharp().remove_horizontals())
-                                .with(ColumnNames::default().alignment(Alignment::center()))
-                                .to_string();
-                            println!("{table}");
-                        }
-                        None => println!("No Moondrop dongle connected."),
+                    if let Some(dongle) = moondrop.get_all() {
+                        let table = Table::new([dongle])
+                            .with(Style::sharp().remove_horizontals())
+                            .with(ColumnNames::default().alignment(Alignment::center()))
+                            .to_string();
+                        println!("{table}");
+                    } else {
+                        println!("No Moondrop dongle connected.");
                     }
                 }
                 GetCommands::Volume => {
-                    let volume = moondrop.get_volume();
-                    println!("Volume: {}", volume);
+                    if let Some(volume) = moondrop.get_volume() {
+                        println!("Volume: {}", volume);
+                    } else {
+                        println!("No Moondrop dongle connected.");
+                    }
+                }
+                GetCommands::Filter => {
+                    if let Some(filter) = moondrop.get_filter() {
+                        println!("Filter: {filter}")
+                    } else {
+                        println!("No Moondrop dongle connected.");
+                    }
+                }
+                GetCommands::Gain => {
+                    if let Some(gain) = moondrop.get_gain() {
+                        println!("Gain: {gain}");
+                    } else {
+                        println!("No Moondrop dongle connected.");
+                    }
+                }
+                GetCommands::IndicatorState => {
+                    if let Some(state) = moondrop.get_indicator_state() {
+                        println!("Indicator State: {state}");
+                    } else {
+                        println!("No Moondrop dongle connected.");
+                    }
                 }
             }
         }

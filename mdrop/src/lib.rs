@@ -104,23 +104,37 @@ impl Moondrop {
             .collect()
     }
 
-    pub fn get_volume(&self) -> Volume {
+    pub fn get_volume(&self) -> Option<Volume> {
         if let Some(id) = self.single {
             let di = self.devices.get(&id).expect("Hashmap should be populated");
             let data = Self::read(di, &GET_VOLUME, 7);
-            return Volume::from_payload(data[VOLUME_IDX]);
+            return Some(Volume::from_payload(data[VOLUME_IDX]));
         }
+        None
+    }
 
-        // TODO: fix
-        Volume::from_payload(0)
-        // let data: &[u8] = &self
-        //     .devices
-        //     .iter()
-        //     .take(1)
-        //     .map(|(_, di)| Self::read(di, &GET_VOLUME, 7))
-        //     .collect::<Vec<Vec<u8>>>()[0];
-        //
-        // data[VOLUME_IDX]
+    pub fn get_filter(&self) -> Option<Filter> {
+        let all = self.get_all();
+        if let Some(info) = all {
+            return Some(info.filter);
+        }
+        None
+    }
+
+    pub fn get_gain(&self) -> Option<Gain> {
+        let all = self.get_all();
+        if let Some(info) = all {
+            return Some(info.gain);
+        }
+        None
+    }
+
+    pub fn get_indicator_state(&self) -> Option<IndicatorState> {
+        let all = self.get_all();
+        if let Some(info) = all {
+            return Some(info.indicator_state);
+        }
+        None
     }
 
     pub fn get_all(&self) -> Option<MoondropInfo> {
