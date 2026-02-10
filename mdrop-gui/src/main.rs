@@ -13,7 +13,8 @@ const WIDTH: u32 = 300;
 pub fn main() -> iced::Result {
     env_logger::init();
 
-    iced::application("mdrop", MdropGui::update, MdropGui::view)
+    iced::application(MdropGui::default, MdropGui::update, MdropGui::view)
+        .title("mdrop")
         .window(iced::window::Settings {
             size: Size::new(300.0, 300.0),
             min_size: Some(Size::new(300.0, 300.0)),
@@ -77,7 +78,7 @@ impl MdropGui {
         }
     }
 
-    fn view(&self) -> Element<Message> {
+    fn view(&self) -> Element<'_, Message> {
         match &self.info {
             Some(info) => {
                 let name = text(&info.name);

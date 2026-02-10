@@ -10,5 +10,4 @@ mdrop.workspace = true
 env_logger.workspace = true
 log.workspace = true
 
-# use this until segfault is fixed in crates.io
-iced = { git = "https://github.com/iced-rs/iced", rev = "fb2544021a40d029a99cadda7cf59acf5e7dc455", features = ["svg"] }
+iced = { version = "0.14", features = ["svg"] }

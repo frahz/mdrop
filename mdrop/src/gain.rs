@@ -11,10 +11,7 @@ pub enum Gain {
 }
 
 impl Gain {
-    pub const ALL: [Gain; 2] = [
-        Gain::Low,
-        Gain::High,
-    ];
+    pub const ALL: [Gain; 2] = [Gain::Low, Gain::High];
 }
 
 impl From<u8> for Gain {

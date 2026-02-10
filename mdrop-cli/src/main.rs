@@ -1,12 +1,12 @@
 use clap::{Args, Parser, Subcommand};
-use mdrop::Moondrop;
 use mdrop::filter::Filter;
 use mdrop::gain::Gain;
 use mdrop::indicator_state::IndicatorState;
 use mdrop::volume::Volume;
-use tabled::Table;
+use mdrop::Moondrop;
 use tabled::settings::themes::ColumnNames;
 use tabled::settings::{Alignment, Style};
+use tabled::Table;
 
 #[derive(Debug, Parser)]
 #[command(name = "mdrop")]
@@ -88,7 +88,7 @@ fn main() {
                     if let Some(dongle) = moondrop.get_all() {
                         let table = Table::new([dongle])
                             .with(Style::sharp().remove_horizontals())
-                            .with(ColumnNames::default().alignment(Alignment::center()))
+                            .with(ColumnNames::head().alignment(Alignment::center()))
                             .to_string();
                         println!("{table}");
                     } else {
@@ -136,7 +136,7 @@ fn main() {
             if !dongles.is_empty() {
                 let table = Table::new(dongles)
                     .with(Style::sharp().remove_horizontals())
-                    .with(ColumnNames::default().alignment(Alignment::center()))
+                    .with(ColumnNames::head().alignment(Alignment::center()))
                     .to_string();
                 println!("{table}");
             } else {

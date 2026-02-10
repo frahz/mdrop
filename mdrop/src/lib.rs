@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::mpsc;
+use std::time::Duration;
 
-use futures_lite::future;
 use nusb::hotplug::HotplugEvent;
 use nusb::transfer::{ControlIn, ControlOut};
-use nusb::{DeviceId, DeviceInfo};
+use nusb::{DeviceId, DeviceInfo, MaybeFuture};
 use tabled::Tabled;
 
 use crate::filter::Filter;
@@ -26,6 +26,7 @@ const REQUEST_VALUE: u16 = 0x0000;
 
 const REQUEST_ID_WRITE: u8 = 0xA0;
 const REQUEST_ID_READ: u8 = 0xA1;
+const CONTROL_TIMEOUT: Duration = Duration::from_millis(500);
 
 const GET_ANY: [u8; 3] = [0xC0, 0xA5, 0xA3];
 const GET_VOLUME: [u8; 3] = [0xC0, 0xA5, 0xA2];
@@ -70,12 +71,13 @@ impl Moondrop {
                 }
                 HotplugEvent::Disconnected(device_id) => {
                     log::debug!("Disconnect: {:?}", device_id);
-                    if let Some(s) = self.single {
-                        if device_id == s {
-                            self.single = None;
-                            tx.send(None).expect("disconnect: send failed");
-                        }
+                    if let Some(s) = self.single
+                        && device_id == s
+                    {
+                        self.single = None;
+                        tx.send(None).expect("disconnect: send failed");
                     }
+
                     self.devices.remove(&device_id);
                     log::debug!("devices: {:?}", self.devices);
                 }
@@ -97,7 +99,7 @@ impl Moondrop {
 
                 let vol_data = Self::read(di, &GET_VOLUME, 7)[VOLUME_IDX];
                 let vol = Volume::from_payload(vol_data);
-                let bus = format!("{:02}:{:02}", di.bus_number(), di.device_address());
+                let bus = format!("{:02}:{:02}", di.busnum(), di.device_address());
                 let data = Self::read(di, &GET_ANY, 7);
                 MoondropInfo::new(name, bus, vol, &data)
             })
@@ -150,7 +152,7 @@ impl Moondrop {
 
             let vol_data = Self::read(di, &GET_VOLUME, 7)[VOLUME_IDX];
             let vol = Volume::from_payload(vol_data);
-            let bus = format!("{:02}:{:02}", di.bus_number(), di.device_address());
+            let bus = format!("{:02}:{:02}", di.busnum(), di.device_address());
             let data = Self::read(di, &GET_ANY, 7);
             return Some(MoondropInfo::new(name, bus, vol, &data));
         }
@@ -202,46 +204,59 @@ impl Moondrop {
     }
 
     fn read(di: &DeviceInfo, cmd: &[u8], length: u16) -> Vec<u8> {
-        let device = di.open().expect("device open failed");
-        let _ = future::block_on(device.control_out(ControlOut {
-            control_type: nusb::transfer::ControlType::Vendor,
-            recipient: nusb::transfer::Recipient::Other,
-            request: REQUEST_ID_WRITE,
-            value: REQUEST_VALUE,
-            index: REQUEST_INDEX,
-            data: cmd,
-        }))
-        .into_result()
-        .expect("write failed");
-        future::block_on(device.control_in(ControlIn {
-            control_type: nusb::transfer::ControlType::Vendor,
-            recipient: nusb::transfer::Recipient::Other,
-            request: REQUEST_ID_READ,
-            value: REQUEST_VALUE,
-            index: REQUEST_INDEX,
-            length,
-        }))
-        .into_result()
-        .expect("read failed")
+        let device = di.open().wait().expect("device_open_failed");
+        device
+            .control_out(
+                ControlOut {
+                    control_type: nusb::transfer::ControlType::Vendor,
+                    recipient: nusb::transfer::Recipient::Other,
+                    request: REQUEST_ID_WRITE,
+                    value: REQUEST_VALUE,
+                    index: REQUEST_INDEX,
+                    data: cmd,
+                },
+                CONTROL_TIMEOUT,
+            )
+            .wait()
+            .expect("write failed");
+        device
+            .control_in(
+                ControlIn {
+                    control_type: nusb::transfer::ControlType::Vendor,
+                    recipient: nusb::transfer::Recipient::Other,
+                    request: REQUEST_ID_READ,
+                    value: REQUEST_VALUE,
+                    index: REQUEST_INDEX,
+                    length,
+                },
+                CONTROL_TIMEOUT,
+            )
+            .wait()
+            .expect("read failed")
     }
 
     fn write(di: &DeviceInfo, cmd: &[u8]) {
-        let device = di.open().expect("device open failed");
-        let _ = future::block_on(device.control_out(ControlOut {
-            control_type: nusb::transfer::ControlType::Vendor,
-            recipient: nusb::transfer::Recipient::Other,
-            request: REQUEST_ID_WRITE,
-            value: REQUEST_VALUE,
-            index: REQUEST_INDEX,
-            data: cmd,
-        }))
-        .into_result()
-        .expect("write failed");
+        let device = di.open().wait().expect("device open failed");
+        device
+            .control_out(
+                ControlOut {
+                    control_type: nusb::transfer::ControlType::Vendor,
+                    recipient: nusb::transfer::Recipient::Other,
+                    request: REQUEST_ID_WRITE,
+                    value: REQUEST_VALUE,
+                    index: REQUEST_INDEX,
+                    data: cmd,
+                },
+                CONTROL_TIMEOUT,
+            )
+            .wait()
+            .expect("write failed");
     }
 
     fn refresh() -> HashMap<DeviceId, DeviceInfo> {
         nusb::list_devices()
-            .unwrap()
+            .wait()
+            .expect("failed to enumerate devices")
             .filter(|d| d.vendor_id() == MOONDROP_VID)
             .map(|d| (d.id(), d))
             .collect()
