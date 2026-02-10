@@ -18,6 +18,7 @@ Commands:
 
 Options:
   -s <DEVICE>      specify target device, by using the USB bus number, to which the command should be directed, ex. `03:02`
+      --json       Print output as JSON
   -h, --help       Print help
 ```
 ### Example
@@ -27,6 +28,12 @@ $ mdrop devices
 ┌───────name────────┬──bus──┬volume┬───────────filter───────────┬─gain─┬indicator_state┐
 │ MOONDROP Dawn Pro │ 03:28 │ 81%  │ Fast roll-off, low-latency │ High │ Disabled      │
 └───────────────────┴───────┴──────┴────────────────────────────┴──────┴───────────────┘
+
+$ mdrop --json devices
+[{"name":"MOONDROP Dawn Pro","bus":"03:28","volume":81,"filter":"Fast roll-off, low-latency","gain":"High","indicator_state":"Disabled"}]
+
+$ mdrop --json get volume
+{"value":81}
 ```
 
 ![image](https://github.com/user-attachments/assets/30fdb3ac-fd8a-440c-a7a0-d31f74788fda)

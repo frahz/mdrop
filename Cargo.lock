@@ -1850,6 +1850,8 @@ dependencies = [
  "log",
  "mdrop",
  "nusb",
+ "serde",
+ "serde_json",
  "tabled",
 ]
 

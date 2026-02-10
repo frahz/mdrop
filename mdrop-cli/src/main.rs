@@ -4,6 +4,8 @@ use mdrop::gain::Gain;
 use mdrop::indicator_state::IndicatorState;
 use mdrop::volume::Volume;
 use mdrop::Moondrop;
+use mdrop::MoondropInfo;
+use serde::Serialize;
 use tabled::settings::themes::ColumnNames;
 use tabled::settings::{Alignment, Style};
 use tabled::Table;
@@ -18,6 +20,10 @@ struct Cli {
     /// specify target device, by using the USB bus number, to which the command should be directed, ex. `03:02`
     #[arg(short = 's', global = true)]
     device: Option<String>,
+
+    /// print output as JSON
+    #[arg(long, global = true)]
+    json: bool,
 }
 
 #[derive(Debug, Subcommand)]
@@ -72,6 +78,39 @@ enum SetCommands {
     IndicatorState { state: IndicatorState },
 }
 
+#[derive(Serialize)]
+struct DongleOutput {
+    name: String,
+    bus: String,
+    volume: u32,
+    filter: String,
+    gain: String,
+    indicator_state: String,
+}
+
+impl From<MoondropInfo> for DongleOutput {
+    fn from(value: MoondropInfo) -> Self {
+        Self {
+            name: value.name,
+            bus: value.bus,
+            volume: value.volume.inner(),
+            filter: value.filter.to_string(),
+            gain: value.gain.to_string(),
+            indicator_state: value.indicator_state.to_string(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+struct ValueOutput<T: Serialize> {
+    value: T,
+}
+
+fn print_json<T: Serialize>(value: &T) {
+    let json = serde_json::to_string(value).expect("serialize json output");
+    println!("{json}");
+}
+
 fn main() {
     env_logger::init();
 
@@ -85,42 +124,70 @@ fn main() {
             let get_cmd = get.command.unwrap_or(GetCommands::All);
             match get_cmd {
                 GetCommands::All => {
-                    if let Some(dongle) = moondrop.get_all() {
-                        let table = Table::new([dongle])
-                            .with(Style::sharp().remove_horizontals())
-                            .with(ColumnNames::head().alignment(Alignment::center()))
-                            .to_string();
-                        println!("{table}");
+                    if args.json {
+                        print_json(&moondrop.get_all().map(DongleOutput::from));
                     } else {
-                        println!("No Moondrop dongle connected.");
+                        if let Some(dongle) = moondrop.get_all() {
+                            let table = Table::new([dongle])
+                                .with(Style::sharp().remove_horizontals())
+                                .with(ColumnNames::head().alignment(Alignment::center()))
+                                .to_string();
+                            println!("{table}");
+                        } else {
+                            println!("No Moondrop dongle connected.");
+                        }
                     }
                 }
                 GetCommands::Volume => {
-                    if let Some(volume) = moondrop.get_volume() {
-                        println!("Volume: {}", volume);
+                    if args.json {
+                        print_json(&moondrop.get_volume().map(|volume| ValueOutput {
+                            value: volume.inner(),
+                        }));
                     } else {
-                        println!("No Moondrop dongle connected.");
+                        if let Some(volume) = moondrop.get_volume() {
+                            println!("Volume: {}", volume);
+                        } else {
+                            println!("No Moondrop dongle connected.");
+                        }
                     }
                 }
                 GetCommands::Filter => {
-                    if let Some(filter) = moondrop.get_filter() {
-                        println!("Filter: {filter}")
+                    if args.json {
+                        print_json(&moondrop.get_filter().map(|filter| ValueOutput {
+                            value: filter.to_string(),
+                        }));
                     } else {
-                        println!("No Moondrop dongle connected.");
+                        if let Some(filter) = moondrop.get_filter() {
+                            println!("Filter: {filter}")
+                        } else {
+                            println!("No Moondrop dongle connected.");
+                        }
                     }
                 }
                 GetCommands::Gain => {
-                    if let Some(gain) = moondrop.get_gain() {
-                        println!("Gain: {gain}");
+                    if args.json {
+                        print_json(&moondrop.get_gain().map(|gain| ValueOutput {
+                            value: gain.to_string(),
+                        }));
                     } else {
-                        println!("No Moondrop dongle connected.");
+                        if let Some(gain) = moondrop.get_gain() {
+                            println!("Gain: {gain}");
+                        } else {
+                            println!("No Moondrop dongle connected.");
+                        }
                     }
                 }
                 GetCommands::IndicatorState => {
-                    if let Some(state) = moondrop.get_indicator_state() {
-                        println!("Indicator State: {state}");
+                    if args.json {
+                        print_json(&moondrop.get_indicator_state().map(|state| ValueOutput {
+                            value: state.to_string(),
+                        }));
                     } else {
-                        println!("No Moondrop dongle connected.");
+                        if let Some(state) = moondrop.get_indicator_state() {
+                            println!("Indicator State: {state}");
+                        } else {
+                            println!("No Moondrop dongle connected.");
+                        }
                     }
                 }
             }
@@ -133,14 +200,20 @@ fn main() {
         },
         Commands::Devices => {
             let dongles = moondrop.detect();
-            if !dongles.is_empty() {
-                let table = Table::new(dongles)
-                    .with(Style::sharp().remove_horizontals())
-                    .with(ColumnNames::head().alignment(Alignment::center()))
-                    .to_string();
-                println!("{table}");
+            if args.json {
+                let output: Vec<DongleOutput> =
+                    dongles.into_iter().map(DongleOutput::from).collect();
+                print_json(&output);
             } else {
-                println!("No devices present");
+                if !dongles.is_empty() {
+                    let table = Table::new(dongles)
+                        .with(Style::sharp().remove_horizontals())
+                        .with(ColumnNames::head().alignment(Alignment::center()))
+                        .to_string();
+                    println!("{table}");
+                } else {
+                    println!("No devices present");
+                }
             }
         }
     }
