@@ -34,13 +34,7 @@
       devShells = forAllSystems (
         pkgs:
         let
-          libPath =
-            with pkgs;
-            lib.makeLibraryPath [
-              libGL
-              libxkbcommon
-              wayland
-            ];
+          inherit (pkgs) lib;
         in
         {
           default = pkgs.mkShell {
@@ -48,14 +42,29 @@
               pkgs.rust-bin.stable.latest.default
             ];
 
-            LD_LIBRARY_PATH = libPath;
+            LD_LIBRARY_PATH = lib.makeLibraryPath [
+              pkgs.libGL
+              pkgs.libxkbcommon
+              pkgs.wayland
+            ];
           };
         }
       );
       packages = forAllSystems (
         pkgs:
         let
-          meta = with pkgs.lib; {
+          inherit (pkgs) lib;
+          src = lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [
+              ./mdrop
+              ./mdrop-cli
+              ./mdrop-gui
+              ./Cargo.lock
+              ./Cargo.toml
+            ];
+          };
+          meta = with lib; {
             description = "Linux CLI tool for controlling Moondrop USB audio dongles.";
             homepage = "https://github.com/frahz/mdrop";
             license = licenses.mit;
@@ -69,12 +78,9 @@
             in
             pkgs.rustPlatform.buildRustPackage {
               inherit (cargoToml.package) name version;
-              inherit meta;
+              inherit meta src;
 
-              src = ./.;
-              cargoLock = {
-                lockFile = ./Cargo.lock;
-              };
+              cargoLock.lockFile = ./Cargo.lock;
               cargoFlags = [
                 "--bin"
                 "mdrop"
@@ -82,37 +88,29 @@
             };
           gui =
             let
+              inherit (pkgs) lib stdenv;
+
               cargoToml = builtins.fromTOML (builtins.readFile ./mdrop-gui/Cargo.toml);
-              libPath =
-                with pkgs;
-                lib.makeLibraryPath [
-                  libGL
-                  libxkbcommon
-                  wayland
-                ];
             in
             pkgs.rustPlatform.buildRustPackage {
               inherit (cargoToml.package) name version;
-              inherit meta;
+              inherit meta src;
 
-              src = ./.;
-              cargoLock = {
-                lockFile = ./Cargo.lock;
-                outputHashes = {
-                  "cryoglyph-0.1.0" = "sha256-8QCTD5OLO05RmwaugblYbKPPN7hfckctQlaBydPNDPE=";
-                  "dpi-0.1.1" = "sha256-hlVhlQ8MmIbNFNr6BM4edKdZbe+ixnPpKm819zauFLQ=";
-                  "iced-0.14.0-dev" = "sha256-YC74qowoW9VJonluX/FuiQc+TvvBytskhvgCLpmknQg=";
-                };
-              };
+              cargoLock.lockFile = ./Cargo.lock;
               cargoFlags = [
                 "--bin"
                 "mdrop-gui"
               ];
 
-              nativeBuildInputs = [ pkgs.makeWrapper ];
-
-              postInstall = ''
-                wrapProgram $out/bin/mdrop-gui --prefix LD_LIBRARY_PATH : ${libPath}
+              postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
+                patchelf $out/bin/mdrop-gui \
+                  --add-rpath ${
+                    lib.makeLibraryPath [
+                      pkgs.libGL
+                      pkgs.libxkbcommon
+                      pkgs.wayland
+                    ]
+                  }
               '';
             };
           default = mdrop;
