@@ -1833,11 +1833,9 @@ name = "mdrop"
 version = "0.3.0"
 dependencies = [
  "clap",
- "env_logger",
  "futures-lite",
  "log",
  "nusb",
- "tabled",
 ]
 
 [[package]]
@@ -1846,10 +1844,8 @@ version = "0.3.0"
 dependencies = [
  "clap",
  "env_logger",
- "futures-lite",
  "log",
  "mdrop",
- "nusb",
  "serde",
  "serde_json",
  "tabled",

@@ -1,9 +1,10 @@
 use std::fmt::Display;
 
-use clap::ValueEnum;
+use crate::MdropError;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum IndicatorState {
     #[default]
     Enabled = 0,
@@ -19,13 +20,15 @@ impl IndicatorState {
     ];
 }
 
-impl From<u8> for IndicatorState {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for IndicatorState {
+    type Error = MdropError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => IndicatorState::Enabled,
-            1 => IndicatorState::DisabledTemp,
-            2 => IndicatorState::Disabled,
-            _ => IndicatorState::Enabled,
+            0 => Ok(IndicatorState::Enabled),
+            1 => Ok(IndicatorState::DisabledTemp),
+            2 => Ok(IndicatorState::Disabled),
+            _ => Err(MdropError::UnknownIndicatorState(value)),
         }
     }
 }

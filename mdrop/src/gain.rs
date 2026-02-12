@@ -1,9 +1,10 @@
 use std::fmt::Display;
 
-use clap::ValueEnum;
+use crate::MdropError;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, ValueEnum)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Gain {
     #[default]
     Low = 0,
@@ -14,12 +15,14 @@ impl Gain {
     pub const ALL: [Gain; 2] = [Gain::Low, Gain::High];
 }
 
-impl From<u8> for Gain {
-    fn from(value: u8) -> Self {
+impl TryFrom<u8> for Gain {
+    type Error = MdropError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Gain::Low,
-            1 => Gain::High,
-            _ => Gain::Low,
+            0 => Ok(Gain::Low),
+            1 => Ok(Gain::High),
+            _ => Err(MdropError::UnknownGain(value)),
         }
     }
 }

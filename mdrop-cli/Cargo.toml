@@ -10,10 +10,8 @@ name = "mdrop"
 path = "src/main.rs"
 
 [dependencies]
-mdrop.workspace = true
+mdrop = { workspace = true, features = ["clap"] }
 clap.workspace = true
-futures-lite.workspace = true
-nusb.workspace = true
 tabled.workspace = true
 env_logger.workspace = true
 log.workspace = true

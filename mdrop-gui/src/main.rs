@@ -6,7 +6,7 @@ use mdrop::filter::Filter;
 use mdrop::gain::Gain;
 use mdrop::indicator_state::IndicatorState;
 use mdrop::volume::Volume;
-use mdrop::{Moondrop, MoondropInfo};
+use mdrop::{DeviceSelector, Moondrop, MoondropInfo};
 
 const WIDTH: u32 = 300;
 
@@ -44,8 +44,10 @@ impl MdropGui {
     fn update(&mut self, message: Message) {
         match message {
             Message::SetVolume => {
-                if let Some(info) = self.info.as_ref() {
-                    self.moondrop.set_volume(info.volume);
+                if let Some(info) = self.info.as_ref()
+                    && let Err(err) = self.moondrop.set_volume(DeviceSelector::Auto, info.volume)
+                {
+                    log::error!("failed to set volume: {err}");
                 }
             }
             Message::VolumeChanged(value) => {
@@ -56,19 +58,28 @@ impl MdropGui {
             Message::SelectFilter(filter) => {
                 if let Some(info) = self.info.as_mut() {
                     info.filter = filter;
-                    self.moondrop.set_filter(filter);
+                    if let Err(err) = self.moondrop.set_filter(DeviceSelector::Auto, filter) {
+                        log::error!("failed to set filter: {err}");
+                    }
                 }
             }
             Message::SelectIndicator(indicator_state) => {
                 if let Some(info) = self.info.as_mut() {
                     info.indicator_state = indicator_state;
-                    self.moondrop.set_indicator_state(indicator_state);
+                    if let Err(err) = self
+                        .moondrop
+                        .set_indicator_state(DeviceSelector::Auto, indicator_state)
+                    {
+                        log::error!("failed to set indicator state: {err}");
+                    }
                 }
             }
             Message::SelectGain(gain) => {
                 if let Some(info) = self.info.as_mut() {
                     info.gain = gain;
-                    self.moondrop.set_gain(gain);
+                    if let Err(err) = self.moondrop.set_gain(DeviceSelector::Auto, gain) {
+                        log::error!("failed to set gain: {err}");
+                    }
                 }
             }
             Message::UpdateDevice(moondrop_info) => {
@@ -95,7 +106,7 @@ impl MdropGui {
                 )
                 .width(WIDTH);
                 let h_slider = container(
-                    slider(1..=100, info.volume.inner(), Message::VolumeChanged)
+                    slider(0..=100, info.volume.inner(), Message::VolumeChanged)
                         .on_release(Message::SetVolume)
                         .shift_step(5u32),
                 )
@@ -145,13 +156,15 @@ fn worker() -> impl Stream<Item = Option<MoondropInfo>> {
             let (tx, rx) = std::sync::mpsc::channel();
 
             std::thread::spawn(move || {
-                moondrop.watch(tx);
+                if let Err(err) = moondrop.watch(tx) {
+                    log::error!("device watch failed: {err}");
+                }
             });
 
-            loop {
-                let data = rx.recv().unwrap();
-                output.send(None).await.expect("dummy send");
-                output.send(data).await.expect("failed to send data");
+            while let Ok(data) = rx.recv() {
+                if output.send(data).await.is_err() {
+                    break;
+                }
             }
         },
     )
@@ -160,7 +173,7 @@ fn worker() -> impl Stream<Item = Option<MoondropInfo>> {
 impl Default for MdropGui {
     fn default() -> Self {
         let moondrop = Moondrop::new();
-        let info = moondrop.get_all();
+        let info = moondrop.get_all(DeviceSelector::Auto).ok();
         Self { moondrop, info }
     }
 }
