@@ -8,6 +8,7 @@ resolver = "2"
 
 [workspace.package]
 authors = [ "frahz <me@frahz.dev>" ]
+version = "0.4.0"
 license = "MIT"
 edition = "2024"
 

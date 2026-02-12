@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-02-11
+
 ### Breaking
 
 - Refactored core device APIs to be target-aware and fallible: getters/setters now use `Result`-based return values and explicit device selection.
